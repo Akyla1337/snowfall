@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Снегопад</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #000;
+    -webkit-user-select: none; user-select: none;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // Значения по умолчанию (совпадают с LivelyProperties.json).
+  // Lively присылает актуальные значения через livelyPropertyListener.
+  const cfg = {
+    count: 200,
+    speed: 60,
+    angle: 0,
+    size: 4,
+    pc: [255, 255, 255],   // цвет снежинок
+    bg: [0, 0, 0],         // цвет фона
+    sway: true,            // покачивание
+    swayAmount: 6,         // амплитуда покачивания, px
+    swaySpeed: 1,          // скорость покачивания
+    weather: false,
+    interval: 10,
+    mouse: false,
+    strength: 5,
+    radius: 120,
+    parallax: false,       // параллакс выключен по умолчанию
+    pStrength: 5           // сила параллакса
+  };
+
+  // ---------- Утилиты ----------
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const toBool = v => v === true || v === 'true' || v === 1 || v === '1';
+
+  const hexToRgb = h => {
+    const n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+
+  // Lively передаёт цвет как "R,G,B"; на всякий случай понимаем и HEX
+  function parseColor(v) {
+    if (Array.isArray(v)) return v.slice(0, 3).map(Number);
+    if (typeof v === 'string') {
+      if (v.startsWith('#')) return hexToRgb(v);
+      const p = v.split(',').map(s => parseFloat(s));
+      if (p.length >= 3 && p.every(n => !isNaN(n))) return p.slice(0, 3);
+    }
+    return [0, 0, 0];
+  }
+
+  const rgb = c => `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
+
+  // ---------- Смена погоды ----------
+  // Погода меняет ТОЛЬКО скорость и угол падения.
+  // Размер, цвет снежинок и цвет фона берутся из настроек пользователя.
+  function randomWeather() {
+    return {
+      speed: rnd(20, 220),
+      angle: rnd(-45, 45)
+    };
+  }
+
+  // Параметры, которые погода может менять и которые плавно сглаживаются.
+  // Настройки пользователя (cfg) погода НЕ перезаписывает,
+  // поэтому при выключении погоды скорость и угол возвращаются к ним.
+  const userVisual = () => ({
+    speed: cfg.speed,
+    angle: cfg.angle
+  });
+  const active = userVisual();
+  let weatherTarget = null;
+  let weatherTimer = 0;
+
+  function stepVisual(dt) {
+    const tgt = (cfg.weather && weatherTarget) ? weatherTarget : userVisual();
+    const t = 1 - Math.exp(-1.5 * dt);
+    active.speed += (tgt.speed - active.speed) * t;
+    active.angle += (tgt.angle - active.angle) * t;
+  }
+
+  // ---------- Связь с Lively ----------
+  // Lively вызывает эту функцию при загрузке и при каждом изменении настройки
+  window.livelyPropertyListener = (name, val) => {
+    switch (name) {
+      case 'count':            cfg.count = Math.round(Number(val)); break;
+      case 'speed':            cfg.speed = Number(val); break;
+      case 'angle':            cfg.angle = Number(val); break;
+      case 'size':             cfg.size = Number(val); break;
+      case 'particleColor':    cfg.pc = parseColor(val); break;
+      case 'bgColor':          cfg.bg = parseColor(val); break;
+      case 'sway':             cfg.sway = toBool(val); break;
+      case 'swayAmount':       cfg.swayAmount = Number(val); break;
+      case 'swaySpeed':        cfg.swaySpeed = Number(val); break;
+      case 'weather':
+        cfg.weather = toBool(val);
+        weatherTarget = null;          // при включении сгенерируется новая погода
+        break;
+      case 'weatherInterval':  cfg.interval = Number(val); break;
+      case 'mouse':            cfg.mouse = toBool(val); break;
+      case 'mouseStrength':    cfg.strength = Number(val); break;
+      case 'mouseRadius':      cfg.radius = Number(val); break;
+      case 'parallax':         cfg.parallax = toBool(val); break;
+      case 'parallaxStrength': cfg.pStrength = Number(val); break;
+    }
+  };
+
+  // ---------- Мышь ----------
+  let mouse = null;
+  addEventListener('pointermove', e => { mouse = { x: e.clientX, y: e.clientY }; });
+  addEventListener('pointerdown', e => { mouse = { x: e.clientX, y: e.clientY }; });
+  addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') mouse = null; });
+  addEventListener('pointercancel', () => { mouse = null; });
+  document.addEventListener('mouseout', e => { if (!e.relatedTarget) mouse = null; });
+
+  // ---------- Параллакс (эффект камеры) ----------
+  // camX/camY — сглаженное смещение «камеры» в диапазоне -1..1
+  let camX = 0, camY = 0;
+
+  function updateCamera(dt) {
+    let tx = 0, ty = 0;
+    if (cfg.parallax && mouse && W && H) {
+      tx = clamp((mouse.x / W - 0.5) * 2, -1, 1);
+      ty = clamp((mouse.y / H - 0.5) * 2, -1, 1);
+    }
+    // Плавное следование за целью, без рывков
+    const k = 1 - Math.exp(-3 * dt);
+    camX += (tx - camX) * k;
+    camY += (ty - camY) * k;
+  }
+
+  // ---------- Снежинки ----------
+  let W = 0, H = 0, dpr = 1;
+  let flakes = [];
+
+  function makeFlake(init) {
+    return {
+      x: rnd(0, W),
+      y: init ? rnd(0, H) : -rnd(5, 40),
+      k: rnd(0.5, 1.3),           // индивидуальный множитель размера
+      sm: rnd(0.7, 1.3),          // индивидуальный множитель скорости
+      depth: rnd(0.3, 1),         // глубина слоя для параллакса (1 = ближе всего)
+
+      // Покачивание: две синусоиды с разными частотами дают неравномерное,
+      // «живое» движение вместо однообразного маятника
+      p1: rnd(0, Math.PI * 2),    // фаза основного покачивания
+      p2: rnd(0, Math.PI * 2),    // фаза дополнительного покачивания
+      f1: rnd(0.6, 1.4),          // частота основного покачивания
+      f2: rnd(1.5, 2.8),          // частота дополнительного покачивания
+      aw: rnd(0.6, 1.4),          // индивидуальная амплитуда снежинки
+
+      px: 0, py: 0                // импульс от мыши
+    };
+  }
+
+  function syncCount() {
+    const n = Math.max(0, cfg.count);
+    while (flakes.length < n) flakes.push(makeFlake(true));
+    if (flakes.length > n) flakes.length = n;
+  }
+
+  function updateFlakes(dt) {
+    const rad = active.angle * Math.PI / 180;
+    const sx = Math.sin(rad), sy = Math.cos(rad);
+    const useMouse = cfg.mouse && mouse;
+    const R = cfg.radius;
+    const force = cfg.strength * 400;
+    const damp = Math.exp(-dt * 4);
+    const span = W + 80;
+
+    for (const f of flakes) {
+      // Фазы покачивания двигаются только по времени и не влияют на физику падения
+      f.p1 += dt * f.f1 * cfg.swaySpeed;
+      f.p2 += dt * f.f2 * cfg.swaySpeed;
+
+      // Плавное отталкивание от курсора
+      if (useMouse) {
+        let dx = f.x - mouse.x, dy = f.y - mouse.y;
+        let d = Math.hypot(dx, dy);
+        if (d < R) {
+          if (d < 1e-3) {
+            dx = Math.random() - 0.5; dy = Math.random() - 0.5;
+            d = Math.hypot(dx, dy) || 1;
+          }
+          const t = 1 - d / R;
+          const s = t * t * (3 - 2 * t);
+          f.px += (dx / d) * s * force * dt;
+          f.py += (dy / d) * s * force * dt;
+        }
+      }
+      f.px *= damp;
+      f.py *= damp;
+
+      const sp = active.speed * f.sm;
+      f.x += (sx * sp + f.px) * dt;
+      f.y += (sy * sp + f.py) * dt;
+
+      // Снежинка улетела вниз или слишком высоко — возвращаем наверх
+      if (f.y > H + 20 || f.y < -H * 0.5) {
+        f.y = -rnd(5, 40);
+        f.x = rnd(0, W);
+        f.px = f.py = 0;
+      }
+      // Горизонтальное зацикливание
+      f.x = ((f.x + 40) % span + span) % span - 40;
+    }
+  }
+
+  function draw() {
+    // Фон и снежинки берутся напрямую из настроек (погода их не меняет)
+    ctx.fillStyle = rgb(cfg.bg);
+    ctx.fillRect(0, 0, W, H);
+
+    // Смещение параллакса применяется только при отрисовке
+    const shift = cfg.pStrength * 6;   // максимум ~60px у ближних снежинок при силе 10
+    const ox = camX * shift;
+    const oy = camY * shift;
+
+    const amp = cfg.sway ? cfg.swayAmount : 0;
+
+    ctx.fillStyle = rgb(cfg.pc);
+    ctx.beginPath();
+    for (const f of flakes) {
+      const r = Math.max(0.5, cfg.size / 2 * f.k);
+
+      // Покачивание по горизонтали: основная волна + меньшая быстрая добавка
+      const swayX = (Math.sin(f.p1) * 0.75 + Math.sin(f.p2) * 0.25) * amp * f.aw;
+      // Лёгкое покачивание по вертикали, чтобы снежинка «парила»
+      const swayY = Math.sin(f.p2 * 0.5 + f.p1 * 0.3) * amp * 0.12 * f.aw;
+
+      const x = f.x + swayX + ox * f.depth;
+      const y = f.y + swayY + oy * f.depth * 0.5;
+
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+
+  // ---------- Размер и цикл ----------
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', resize);
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+
+    if (flakes.length !== Math.max(0, cfg.count)) syncCount();
+
+    if (cfg.weather) {
+      weatherTimer -= dt;
+      if (!weatherTarget || weatherTimer <= 0) {
+        weatherTarget = randomWeather();
+        weatherTimer = cfg.interval;
+      }
+    } else {
+      weatherTarget = null;
+    }
+
+    stepVisual(dt);
+    updateCamera(dt);
+    updateFlakes(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- Старт ----------
+  resize();
+  syncCount();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
