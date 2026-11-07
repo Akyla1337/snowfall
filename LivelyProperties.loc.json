@@ -1,0 +1,54 @@
+{
+  "Languages": {
+    "en": {
+      "count": {
+        "text": "Snow: number of flakes"
+      },
+      "speed": {
+        "text": "Snow: fall speed (changed by weather when enabled)"
+      },
+      "angle": {
+        "text": "Snow: fall angle (changed by weather when enabled)"
+      },
+      "size": {
+        "text": "Snow: flake size"
+      },
+      "particleColor": {
+        "text": "Snow: flake color"
+      },
+      "bgColor": {
+        "text": "Background: background color"
+      },
+      "sway": {
+        "text": "Sway: flakes sway in the air"
+      },
+      "swayAmount": {
+        "text": "Sway: amplitude (px)"
+      },
+      "swaySpeed": {
+        "text": "Sway: speed"
+      },
+      "weather": {
+        "text": "Weather: enable weather changes (changes speed and angle)"
+      },
+      "weatherInterval": {
+        "text": "Weather: change interval (sec)"
+      },
+      "mouse": {
+        "text": "Mouse: flakes avoid the cursor"
+      },
+      "mouseStrength": {
+        "text": "Mouse: flake speed away from the cursor"
+      },
+      "mouseRadius": {
+        "text": "Mouse: cursor radius (px)"
+      },
+      "parallax": {
+        "text": "Parallax: camera follows the mouse"
+      },
+      "parallaxStrength": {
+        "text": "Parallax: effect strength"
+      }
+    }
+  }
+}
