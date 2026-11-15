@@ -1,7 +1,6 @@
 # ❄️ Snowfall Wallpaper for Lively
 
 [![Lively Wallpaper](https://img.shields.io/badge/Lively%20Wallpaper-2.2.0.0%2B-blue)](https://github.com/rocksdanister/lively)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Анимированные обои с падающим снегом для [Lively Wallpaper](https://github.com/rocksdanister/lively).
 Animated snowfall wallpaper for [Lively Wallpaper](https://github.com/rocksdanister/lively).
@@ -43,10 +42,6 @@ Snow/
 └── LivelyProperties.loc.json   # английский перевод настроек
 ```
 
-### Лицензия
-
-Распространяется под лицензией [MIT](LICENSE).
-
 ---
 
 ## 🇬🇧 English
@@ -59,8 +54,11 @@ All parameters are configured in the Lively interface, no code editing required.
 - **Sway:** flakes gently drift in the air. You can enable or disable it and set the amplitude and speed.
 - **Weather mode:** fall speed and angle change smoothly at a configurable interval. Flake count, size, and colors stay under your control. When weather mode is turned off, your values are restored.
 - **Mouse interaction** *(off by default)*: flakes avoid the cursor. You can toggle it and adjust the push speed and cursor radius.
-- **Parallax** *(off by default)*: flakes shift across depth layers as the mouse moves, creating a camera-motion 
+- **Parallax** *(off by default)*: flakes shift across depth layers as the mouse moves, creating a camera-motion effect. You can enable it and adjust its strength.
+- **Localization:** settings are available in Russian and English. English labels require Lively **2.2.0.0** or newer.
 
 ### Installation
-1. Download the ZIP file from the releases page.
-2. In the app, click the + button and drag the file into it.
+1. Download the ZIP file from the [releases](https://github.com/Akyla1337/snowfall/releases) page.
+2. In Lively, click the **+** button and drag the downloaded ZIP file into the app.
+
+All settings can be changed in Lively; editing the source code is not required.
