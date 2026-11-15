@@ -43,6 +43,50 @@
     pStrength: 5           // сила параллакса
   };
 
+  // Последние настройки, пришедшие от Lively. Пресет временно заменяет их,
+  // а выбор «Пользовательский» возвращает сохранённые значения ползунков.
+  let manual = { ...cfg, pc: cfg.pc.slice(), bg: cfg.bg.slice() };
+
+  const presets = [
+    null,
+    {
+      count: 250, speed: 28, angle: 0, size: 3,
+      pc: [225, 238, 255], bg: [8, 14, 28],
+      sway: true, swayAmount: 4, swaySpeed: 0.7,
+      weather: false, interval: 10
+    },
+    {
+      count: 500, speed: 48, angle: 5, size: 3.5,
+      pc: [245, 248, 255], bg: [8, 12, 24],
+      sway: true, swayAmount: 6, swaySpeed: 1,
+      weather: false, interval: 10
+    },
+    {
+      count: 1300, speed: 180, angle: 25, size: 5.5,
+      pc: [255, 255, 255], bg: [4, 7, 16],
+      sway: true, swayAmount: 10, swaySpeed: 1.5,
+      weather: true, interval: 6
+    }
+  ];
+
+  function applyPreset(index) {
+    const preset = presets[index];
+    if (!preset) return;
+    for (const [key, value] of Object.entries(preset)) {
+      cfg[key] = Array.isArray(value) ? value.slice() : value;
+    }
+    weatherTarget = null;
+    weatherTimer = 0;
+  }
+
+  function restoreManualSettings() {
+    for (const key of Object.keys(manual)) {
+      cfg[key] = Array.isArray(manual[key]) ? manual[key].slice() : manual[key];
+    }
+    weatherTarget = null;
+    weatherTimer = 0;
+  }
+
   // ---------- Утилиты ----------
   const rnd = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -132,6 +176,13 @@
       case 'mouseRadius':      cfg.radius = numberInRange(val, 30, 400, cfg.radius); break;
       case 'parallax':         cfg.parallax = toBool(val); break;
       case 'parallaxStrength': cfg.pStrength = numberInRange(val, 1, 10, cfg.pStrength); break;
+      case 'preset':
+        if (Number(val) === 0) restoreManualSettings();
+        else applyPreset(Number(val));
+        break;
+    }
+    if (name !== 'preset') {
+      manual = { ...cfg, pc: cfg.pc.slice(), bg: cfg.bg.slice() };
     }
   };
 

@@ -48,6 +48,16 @@
       },
       "parallaxStrength": {
         "text": "Parallax: effect strength"
+      },
+      "preset": {
+        "text": "Preset: quick look selection",
+        "help": "Presets change the scene, not slider values. Choose Custom before manually adjusting settings.",
+        "items": [
+          "Custom",
+          "Quiet snow",
+          "Light snowfall",
+          "Blizzard"
+        ]
       }
     }
   }
